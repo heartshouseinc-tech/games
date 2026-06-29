@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ゲームセンター — 10ゲーム対戦</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import{getFirestore,collection,addDoc,getDocs,getDoc,doc,updateDoc,onSnapshot,query,orderBy,where,limit,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+const app=initializeApp({
+  apiKey:"AIzaSyCVk2miG5TK1ffTofXLh0hHgeSbOvmIgZ8",
+  authDomain:"kensetsu-nippo-842a2.firebaseapp.com",
+  projectId:"kensetsu-nippo-842a2",
+  storageBucket:"kensetsu-nippo-842a2.firebasestorage.app",
+  messagingSenderId:"702880974315",
+  appId:"1:702880974315:web:985321dc9180046629c5ae"
+});
+const auth=getAuth(app);const db=getFirestore(app);
+window.__fb={auth,db,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,onAuthStateChanged,collection,addDoc,getDocs,getDoc,doc,updateDoc,onSnapshot,query,orderBy,where,limit,serverTimestamp};
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+<style>
+:root{
+  --bg:#0F0F13;--bg2:#16161C;--bg3:#1E1E26;
+  --sur:#22222C;--sur2:#2A2A36;--sur3:#323240;
+  --bor:rgba(255,255,255,.07);--bor2:rgba(255,255,255,.14);
+  --txt:#F0F0F8;--txt2:#A0A0B8;--txt3:#606078;
+  --acc:#7C3AED;--acc2:#8B5CF6;--acc3:rgba(124,58,237,.18);
+  --grn:#10B981;--grn2:rgba(16,185,129,.18);
+  --rose:#F43F5E;--rose2:rgba(244,63,94,.15);
+  --gold:#F59E0B;--gold2:rgba(245,158,11,.15);
+  --blue:#3B82F6;--blue2:rgba(59,130,246,.15);
+  --sh:0 4px 24px rgba(0,0,0,.5);
+  --r1:6px;--r2:10px;--r3:16px;--r4:22px;--rf:9999px;
+  --fb:'Noto Sans JP',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--fb);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{border:none;cursor:pointer;font-family:var(--fb);-webkit-tap-highlight-color:transparent;outline:none}
+input,textarea{font-family:var(--fb);outline:none}
+::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:var(--sur3)}
+.splash{position:fixed;inset:0;background:linear-gradient(145deg,#0A0A12,#1A0A30);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;transition:opacity .8s}
+.splash.hide{opacity:0;pointer-events:none}
+.auth-wrap{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;padding:1.2rem;display:none}
+.auth-card{background:var(--sur);border:1px solid var(--bor2);border-radius:var(--r3);padding:1.5rem 1.2rem;width:100%;max-width:340px;box-shadow:var(--sh)}
+.auth-input{width:100%;padding:.52rem .68rem;border-radius:var(--r2);border:1px solid var(--bor2);background:var(--bg3);font-size:.74rem;color:var(--txt);margin-bottom:.5rem}
+.auth-input:focus{border-color:var(--acc)}
+.auth-btn{width:100%;padding:.68rem;border-radius:var(--rf);font-size:.76rem;font-weight:700;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;margin-top:.2rem}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;display:none}
+.topbar{display:flex;align-items:center;padding:.42rem .85rem;background:var(--bg2);border-bottom:1px solid var(--bor);flex-shrink:0;gap:.4rem}
+.page{display:none;flex:1;flex-direction:column;overflow:hidden}
+.page.on{display:flex}
+.sb{flex:1;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+/* ゲームカード */
+.game-card{background:var(--sur);border:1.5px solid var(--bor);border-radius:var(--r3);margin:.38rem .85rem;padding:.82rem .88rem;cursor:pointer;transition:all .15s}
+.game-card:active{transform:scale(.97)}
+.game-ico{font-size:1.8rem;margin-bottom:.3rem}
+.game-name{font-size:.88rem;font-weight:700;margin-bottom:.1rem}
+.game-desc{font-size:.58rem;color:var(--txt2);line-height:1.5;margin-bottom:.25rem}
+.game-tags{display:flex;gap:.22rem;flex-wrap:wrap}
+.gtag{padding:.1rem .35rem;border-radius:var(--rf);font-size:.5rem;font-weight:700;border:1px solid var(--bor2)}
+/* ロビー */
+.room-card{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r2);margin:.28rem .85rem;padding:.58rem .72rem;cursor:pointer;transition:all .12s}
+.room-card:hover{border-color:var(--bor2)}
+/* チャット */
+.chat-msgs{flex:1;overflow-y:auto;padding:.5rem .75rem;display:flex;flex-direction:column;gap:.32rem;min-height:0}
+.cmsg{max-width:85%}
+.cmsg.me{align-self:flex-end}
+.cmsg.other{align-self:flex-start}
+.cmsg.sys{align-self:center}
+.cbub{padding:.4rem .6rem;border-radius:var(--r3);font-size:.68rem;line-height:1.6}
+.cmsg.me .cbub{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border-radius:var(--r3) var(--r3) 4px var(--r3)}
+.cmsg.other .cbub{background:var(--sur2);border:1px solid var(--bor);color:var(--txt);border-radius:4px var(--r3) var(--r3) var(--r3)}
+.cmsg.sys .cbub{background:var(--sur3);color:var(--txt3);font-size:.58rem;border-radius:var(--rf)}
+.chat-foot{padding:.38rem .75rem;
+  background:var(--sur);border-top:1px solid var(--bor);display:flex;gap:.28rem;align-items:flex-end;flex-shrink:0;
+  padding-bottom:max(.38rem,env(safe-area-inset-bottom))}
+.chat-ta{flex:1;
+  padding:.38rem .55rem;
+  border-radius:var(--r2);border:1.5px solid var(--bor2);
+  background:var(--bg3);
+  font-size:.7rem;color:var(--txt);resize:none;min-height:30px;max-height:72px;line-height:1.5}
+.chat-ta:focus{border-color:var(--acc)}
+/* ゲーム共通 */
+.btn-primary{width:100%;padding:.7rem;border-radius:var(--rf);background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:.32rem}
+.btn-secondary{width:100%;
+  padding:.6rem;
+  border-radius:var(--rf);border:1.5px solid var(--bor2);
+  background:transparent;
+  font-size:.72rem;
+  font-weight:700;color:var(--txt2);cursor:pointer;margin-bottom:.28rem}
+.btn-danger{padding:.32rem .7rem;border-radius:var(--rf);border:1px solid var(--rose);background:var(--rose2);font-size:.6rem;color:var(--rose);cursor:pointer}
+.toast{position:fixed;bottom:calc(1rem + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--sur3);border:1px solid var(--bor2);
+  padding:.45rem .9rem;
+  border-radius:var(--rf);
+  font-size:.68rem;color:var(--txt);opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:500}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* オセロ */
+.othello-board{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;background:var(--grn);padding:4px;border-radius:var(--r2)}
+.oth-cell{background:#1a7a40;border-radius:3px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s}
+.oth-cell:hover{background:#228a4a}
+.oth-cell.hint{background:#22a050}
+.oth-piece{border-radius:50%;width:80%;height:80%;transition:all .2s}
+/* 五目並べ */
+.gomoku-board{display:grid;background:var(--gold);padding:4px;border-radius:var(--r2)}
+.gom-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(0,0,0,.2);transition:all .1s}
+.gom-cell:hover{background:rgba(255,255,255,.15)}
+/* カード */
+.card-item{display:inline-flex;align-items:center;justify-content:center;width:42px;height:58px;
+  border-radius:6px;border:1.5px solid var(--bor2);
+  background:var(--sur2);
+  font-size:1.1rem;cursor:pointer;transition:all .12s;flex-shrink:0;margin:.15rem;position:relative}
+.card-item.selected{border-color:var(--acc);background:var(--acc3);transform:translateY(-6px)}
+.card-item.red{color:#e53e3e}
+.card-item.black{color:var(--txt)}
+.card-item.back{background:linear-gradient(135deg,var(--acc),var(--acc2));border-color:transparent}
+/* 大富豪フィールド */
+.daifugo-field{min-height:60px;background:var(--bg3);border-radius:var(--r2);border:1px solid var(--bor);display:flex;align-items:center;justify-content:center;gap:.3rem;flex-wrap:wrap;padding:.4rem}
+/* スゴロク */
+.sugoroku-board{display:grid;gap:3px;padding:4px;background:var(--bg3);border-radius:var(--r2)}
+.sg-cell{border-radius:var(--r1);aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;
+  font-weight:700;border:1px solid var(--bor2);
+  background:var(--sur2);position:relative;overflow:hidden}
+/* プレイヤーリスト */
+.player-row{display:flex;align-items:center;gap:.45rem;padding:.42rem .65rem;background:var(--sur2);border-radius:var(--r2);margin-bottom:.28rem;border:1px solid var(--bor)}
+.player-color{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+/* クイズ */
+.quiz-choice{width:100%;
+  padding:.58rem .75rem;
+  border-radius:var(--r2);border:1.5px solid var(--bor2);
+  background:var(--sur2);
+  font-size:.75rem;color:var(--txt);cursor:pointer;text-align:left;margin-bottom:.32rem;transition:all .15s}
+.quiz-choice:hover{border-color:var(--acc);background:var(--acc3)}
+.quiz-choice.correct{border-color:var(--grn);background:var(--grn2);color:var(--grn)}
+.quiz-choice.wrong{border-color:var(--rose);background:var(--rose2);color:var(--rose)}
+/* ワードウルフ */
+.wolf-card{background:linear-gradient(135deg,var(--acc),var(--acc2));border-radius:var(--r3);padding:1.2rem;text-align:center;margin:.5rem .85rem}
+/* 大喜利 */
+.answer-card{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--r2);padding:.55rem .65rem;margin-bottom:.28rem}
+</style>
+</head>
+<body>
+
+<div class="splash" id="splash">
+  <div style="font-size:3rem;margin-bottom:.6rem">🎮</div>
+  <div style="font-size:1.8rem;font-weight:900;color:#8B5CF6;letter-spacing:.15em;margin-bottom:.2rem">GAME CENTER</div>
+  <div style="font-size:.58rem;color:rgba(255,255,255,.35);letter-spacing:.2em;margin-bottom:2rem">10ゲーム × リアルタイム対戦</div>
+  <div style="width:120px;height:2px;background:var(--sur3);overflow:hidden;border-radius:1px">
+    <div style="height:100%;background:linear-gradient(90deg,var(--acc),var(--grn));animation:spf 2s ease forwards"></div>
+  </div>
+  <style>@keyframes spf{from{width:0}to{width:100%}}</style>
+</div>
+
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-card">
+    <div style="text-align:center;font-size:1.8rem;margin-bottom:.3rem">🎮</div>
+    <div style="font-size:1rem;font-weight:900;color:var(--acc2);text-align:center;letter-spacing:.1em;margin-bottom:.1rem">GAME CENTER</div>
+    <div style="font-size:.54rem;color:var(--txt3);text-align:center;margin-bottom:1rem">10ゲーム × リアルタイム対戦</div>
+    <div style="font-size:.58rem;font-weight:700;color:var(--txt3);margin-bottom:.18rem">メールアドレス</div>
+    <input class="auth-input" id="li-email" type="email" placeholder="example@email.com">
+    <div style="font-size:.58rem;font-weight:700;color:var(--txt3);margin-bottom:.18rem">パスワード</div>
+    <input class="auth-input" id="li-pass" type="password" placeholder="パスワード">
+    <div style="font-size:.58rem;color:var(--rose);min-height:.8rem" id="li-err"></div>
+    <button class="auth-btn" onclick="doLogin()">ゲームを始める</button>
+    <div style="text-align:center;margin-top:.55rem">
+      <button onclick="toggleReg()" style="background:transparent;font-size:.6rem;color:var(--txt3);text-decoration:underline">新規登録</button>
+    </div>
+    <div id="reg-area" style="display:none;margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--bor)">
+      <div style="font-size:.56rem;font-weight:700;color:var(--txt3);margin-bottom:.18rem">メールアドレス</div>
+      <input class="auth-input" id="reg-email" type="email" placeholder="example@email.com">
+      <div style="font-size:.56rem;font-weight:700;color:var(--txt3);margin-bottom:.18rem">仮パスワード（6文字以上）</div>
+      <input class="auth-input" id="reg-pass" type="password" placeholder="パスワード">
+      <div style="font-size:.56rem;font-weight:700;color:var(--txt3);margin-bottom:.18rem">確認</div>
+      <input class="auth-input" id="reg-pass2" type="password" placeholder="もう一度">
+      <div style="font-size:.58rem;color:var(--rose);min-height:.8rem" id="reg-err"></div>
+      <button class="auth-btn" style="background:linear-gradient(135deg,var(--grn),#34D399)" onclick="doRegister()">登録してプレイ</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div style="font-size:1rem">🎮</div>
+    <div style="font-size:.82rem;font-weight:700;color:var(--acc2);letter-spacing:.08em">GAME CENTER</div>
+    <a href="index.html" style="padding:.22rem .5rem;
+      border-radius:var(--rf);border:1px solid var(--bor2);
+      background:var(--acc3);
+      font-size:.54rem;color:var(--acc2);text-decoration:none;margin-left:.3rem">🏠 HOME</a>
+    <div style="margin-left:auto;font-size:.56rem;color:var(--txt3)" id="topbar-user"></div>
+    <button style="padding:.22rem .5rem;border-radius:var(--rf);border:1px solid var(--bor);font-size:.54rem;color:var(--txt3)" onclick="doLogout()">退出</button>
+  </div>
+
+  <!-- ゲーム一覧 -->
+  <div class="page on" id="pg-home">
+    <div style="padding:.7rem .85rem .3rem;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:900;color:var(--acc2)">🎮 ゲームを選ぶ</div>
+      <div style="font-size:.6rem;color:var(--txt3);margin-top:.1rem">全10ゲーム × リアルタイム対戦 × Gemini 2.5 Flash搭載</div>
+    </div>
+    <div class="sb" id="game-list"></div>
+  </div>
+
+  <!-- ロビー -->
+  <div class="page" id="pg-lobby">
+    <div style="display:flex;align-items:center;padding:.5rem .85rem;background:var(--bg2);border-bottom:1px solid var(--bor);flex-shrink:0;gap:.4rem">
+      <div style="font-size:.88rem;font-weight:700;flex:1" id="lobby-title">ロビー</div>
+      <button onclick="nav('home')" style="padding:.22rem .55rem;border-radius:var(--rf);border:1px solid var(--bor);font-size:.56rem;color:var(--txt3)">← 戻る</button>
+    </div>
+    <div class="sb" style="padding:.65rem .85rem">
+      <button class="btn-primary" id="create-btn" onclick="createGameRoom()">🎯 ルームを作成する</button>
+      <div style="font-size:.6rem;font-weight:700;color:var(--txt3);margin-bottom:.22rem">ルームIDで参加</div>
+      <div style="display:flex;gap:.3rem;margin-bottom:.55rem">
+        <input id="join-id" placeholder="ルームIDを入力..."
+          style="flex:1;padding:.44rem .6rem;border-radius:var(--r2);border:1.5px solid var(--bor2);background:var(--sur2);font-size:.72rem;color:var(--txt)">
+        <button onclick="joinGameRoom()" style="padding:.44rem .8rem;border-radius:var(--rf);background:var(--acc);border:none;font-size:.72rem;font-weight:700;color:#fff;cursor:pointer">参加</button>
+      </div>
+      <div style="font-size:.6rem;font-weight:700;color:var(--txt3);margin-bottom:.2rem">🕐 待機中のルーム</div>
+      <div id="lobby-rooms">
+        <div style="color:var(--txt3);font-size:.65rem;padding:.5rem">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ゲームプレイ -->
+  <div class="page" id="pg-game">
+    <div style="display:flex;align-items:center;padding:.42rem .85rem;background:var(--bg2);border-bottom:1px solid var(--bor);flex-shrink:0;gap:.35rem">
+      <div style="font-size:.78rem;font-weight:700;flex:1" id="game-room-title">ゲーム</div>
+      <div style="font-size:.58rem;padding:.16rem .42rem;border-radius:var(--rf);border:1px solid var(--bor)" id="game-status-badge">待機中</div>
+      <button class="btn-danger" onclick="leaveGame()">退出</button>
+    </div>
+    <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--bor);flex-shrink:0">
+      <button id="tab-game-btn" onclick="switchGameTab('game')" style="flex:1;
+        padding:.35rem;
+        font-size:.65rem;
+        font-weight:700;color:var(--acc2);
+        background:var(--acc3);border:none;border-bottom:2px solid var(--acc)">🎮 ゲーム</button>
+      <button id="tab-chat-btn" onclick="switchGameTab('chat')" style="flex:1;padding:.35rem;font-size:.65rem;font-weight:700;color:var(--txt3);background:transparent;border:none">💬 チャット</button>
+    </div>
+    <div id="game-area" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="sb" id="game-content" style="padding:.5rem .85rem"></div>
+    </div>
+    <div id="chat-area" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="chat-msgs" id="chat-msgs"></div>
+      <div class="chat-foot">
+        <textarea class="chat-ta" id="chat-input" rows="1" placeholder="メッセージ..."></textarea>
+        <button onclick="sendChat()" style="padding:.38rem .7rem;border-radius:var(--rf);background:var(--acc);border:none;font-size:.68rem;font-weight:700;color:#fff;flex-shrink:0">送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const FB_URL=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ?'http://localhost:5001/kensetsu-nippo-842a2/us-central1'
+  :'https://us-central1-kensetsu-nippo-842a2.cloudfunctions.net';
+const GEMINI_URL=FB_URL+'/askAI';
+const ACCESS_KEY='HeartsHouse2026Key';
+
+async function callGemini(sys,user,max=800){
+  try{
+    const r=await fetch(GEMINI_URL,{method:'POST',
+      headers:{'Content-Type':'application/json','x-access-key':ACCESS_KEY},
+      body:JSON.stringify({model:'gemini-2.5-flash',
+        messages:[{role:'user',content:sys+'\n\n'+user}],
+        prompt:sys+'\n\n'+user,mode:'normal',max_tokens:max})});
+    const d=await r.json();
+    const data=d.data?d.data:d;
+    return d?.data?.text||data?.candidates?.[0]?.content?.parts?.[0]?.text||d?.text||'';
+  }catch(e){return '';}
+}
+
+/* ══ 10ゲーム定義 ══ */
+const GAMES=[
+  {id:'othello',name:'オセロ',ico:'⚫',color:'var(--grn)',
+   desc:'2人で対戦。石をひっくり返して多い方が勝ち',
+   tags:['2人','ターン制'],minP:2,maxP:2},
+  {id:'gomoku',name:'五目並べ',ico:'⭕',color:'var(--gold)',
+   desc:'2人で対戦。縦横斜めに5つ並べたら勝ち',
+   tags:['2人','ターン制'],minP:2,maxP:2},
+  {id:'baba',name:'ババ抜き',ico:'🃏',color:'var(--rose)',
+   desc:'2〜4人。ジョーカーを持ったら負け',
+   tags:['2〜4人','カード'],minP:2,maxP:4},
+  {id:'daifugo',name:'大富豪',ico:'👑',color:'var(--gold)',
+   desc:'3〜6人。手札を早く出し切った人が勝ち',
+   tags:['3〜6人','カード'],minP:3,maxP:6},
+  {id:'sugoroku',name:'人生スゴロク',ico:'🎲',color:'var(--acc)',
+   desc:'2〜6人。ルーレットで進みゴールを目指す。AIがイベント生成',
+   tags:['2〜6人','AI搭載'],minP:2,maxP:6},
+  {id:'quiz',name:'クイズ早押し',ico:'❓',color:'var(--blue)',
+   desc:'2〜8人。Geminiが問題生成。早押しで得点',
+   tags:['2〜8人','AI搭載'],minP:2,maxP:8},
+  {id:'wolf',name:'ワードウルフ',ico:'🐺',color:'var(--acc)',
+   desc:'3〜8人。1人だけ違うお題。誰がウルフか当てる',
+   tags:['3〜8人','AI搭載'],minP:3,maxP:8},
+  {id:'okiri',name:'大喜利対戦',ico:'😂',color:'var(--rose)',
+   desc:'2〜8人。AIがお題を出す。一番面白い回答をAIが選ぶ',
+   tags:['2〜8人','AI搭載'],minP:2,maxP:8},
+  {id:'ranking',name:'なんでもランキング',ico:'📊',color:'var(--grn)',
+   desc:'2〜8人。AIがお題を出す。みんなの回答が一致したら得点',
+   tags:['2〜8人','AI搭載'],minP:2,maxP:8},
+  {id:'escape',name:'謎解き脱出ゲーム',ico:'🔐',color:'var(--gold)',
+   desc:'2〜6人で協力。AIがリアルタイムで謎を生成。みんなで解け',
+   tags:['2〜6人','協力','AI搭載'],minP:2,maxP:6},
+  {id:'shogi',name:'将棋',ico:'♟',color:'#D4AF37',
+   desc:'2人対戦。本格将棋。各駒の動き・成り・持ち駒完全実装',
+   tags:['2人','本格'],minP:2,maxP:2},
+];
+
+/* ══ 状態 ══ */
+let currentUser=null;
+let currentGame=null;
+let currentRoomId=null;
+let myRole=null;
+let roomUnsub=null;
+let chatUnsub=null;
+let gameState={};
+let players=[];
+
+/* ══ ナビ ══ */
+function nav(p){
+  ['home','lobby','game'].forEach(pg=>{
+    const el=document.getElementById('pg-'+pg);
+    if(el)el.classList.remove('on');
+  });
+  const el=document.getElementById('pg-'+p);
+  if(el)el.classList.add('on');
+  if(p==='home')renderGameList();
+}
+
+function switchGameTab(t){
+  document.getElementById('game-area').style.display=t==='game'?'flex':'none';
+  document.getElementById('chat-area').style.display=t==='chat'?'flex':'none';
+  const gb=document.getElementById('tab-game-btn');
+  const cb=document.getElementById('tab-chat-btn');
+  if(gb){
+    gb.style.background=t==='game'?'var(--acc3)':'transparent';
+    gb.style.color=t==='game'?'var(--acc2)':'var(--txt3)';
+    gb.style.borderBottom=t==='game'?'2px solid var(--acc)':'2px solid transparent';
+  }
+  if(cb){
+    cb.style.background=t==='chat'?'var(--acc3)':'transparent';
+    cb.style.color=t==='chat'?'var(--acc2)':'var(--txt3)';
+    cb.style.borderBottom=t==='chat'?'2px solid var(--acc)':'2px solid transparent';
+  }
+}
+
+/* ══ ゲーム一覧 ══ */
+function renderGameList(){
+  const el=document.getElementById('game-list');
+  if(!el)return;
+  el.innerHTML=GAMES.map(g=>`
+    <div class="game-card" onclick="openLobby('${g.id}')">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <div style="font-size:1.8rem;width:42px;text-align:center">${g.ico}</div>
+        <div style="flex:1">
+          <div class="game-name" style="color:${g.color}">${g.name}</div>
+          <div class="game-desc">${g.desc}</div>
+          <div class="game-tags">
+            ${g.tags.map(t=>`<span class="gtag" style="color:${g.color};border-color:${g.color}30;background:${g.color}12">${t}</span>`).join('')}
+          </div>
+        </div>
+        <div style="font-size:.55rem;color:var(--txt3)">▶</div>
+      </div>
+    </div>`).join('')+'<div style="height:.75rem"></div>';
+}
+
+/* ══ ロビー ══ */
+function openLobby(gameId){
+  currentGame=GAMES.find(g=>g.id===gameId);
+  if(!currentGame)return;
+  document.getElementById('lobby-title').textContent=currentGame.ico+' '+currentGame.name+' ロビー';
+  loadLobbyRooms();
+  nav('lobby');
+}
+
+async function loadLobbyRooms(){
+  const{db,collection,query,where,limit,getDocs}=window.__fb;
+  const el=document.getElementById('lobby-rooms');
+  if(!el)return;
+  try{
+    // orderByを外してインデックスエラーを回避
+    const q=query(
+      collection(db,'game_rooms'),
+      where('gameId','==',currentGame.id),
+      where('status','==','waiting'),
+      limit(10)
+    );
+    const snap=await getDocs(q);
+    if(snap.empty){
+      el.innerHTML='<div style="color:var(--txt3);font-size:.65rem;padding:.3rem">待機中のルームはありません</div>';
+      return;
+    }
+    // クライアント側でcreatedAt降順ソート
+    const docs=[...snap.docs].sort((a,b)=>{
+      const at=a.data().createdAt?.seconds||0;
+      const bt=b.data().createdAt?.seconds||0;
+      return bt-at;
+    });
+    let h='';
+    docs.forEach(d=>{
+      const data=d.data();
+      const cnt=data.playerCount||1;
+      const max=currentGame.maxP;
+      h+=`<div class="room-card" onclick="quickJoin('${d.id}')">
+        <div style="font-size:.72rem;font-weight:700;color:${currentGame.color}">${data.hostName||'ホスト'}のルーム</div>
+        <div style="font-size:.56rem;color:var(--txt3);margin-top:.06rem">参加者: ${cnt}/${max}人 ｜ ID: ${d.id.substring(0,8)}...</div>
+        <div style="font-size:.58rem;color:var(--grn);margin-top:.1rem;font-weight:700">▶ タップして参加</div>
+      </div>`;
+    });
+    el.innerHTML=h;
+  }catch(e){
+    el.innerHTML=`<div style="color:var(--txt3);font-size:.65rem">読み込みエラー: ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+function quickJoin(roomId){
+  document.getElementById('join-id').value=roomId;
+  joinGameRoom();
+}
+
+/* ══ ルーム作成・参加 ══ */
+async function createGameRoom(){
+  if(!currentUser||!currentGame)return;
+  const{db,collection,addDoc,serverTimestamp}=window.__fb;
+  const initState=getInitialState(currentGame.id);
+  const ref=await addDoc(collection(db,'game_rooms'),{
+    gameId:currentGame.id,
+    gameName:currentGame.name,
+    hostId:currentUser.uid,
+    hostName:currentUser.displayName||currentUser.email.split('@')[0],
+    players:[{uid:currentUser.uid,name:currentUser.displayName||currentUser.email.split('@')[0],score:0}],
+    playerCount:1,
+    status:'waiting',
+    state:JSON.stringify(initState),
+    turn:0,
+    createdAt:serverTimestamp()
+  });
+  currentRoomId=ref.id;
+  myRole=0;
+  players=[{uid:currentUser.uid,name:currentUser.displayName||currentUser.email.split('@')[0],score:0}];
+  startListening(ref.id);
+  nav('game');
+  document.getElementById('game-room-title').textContent=currentGame.ico+' '+currentGame.name;
+  updateStatusBadge('待機中');
+  try{await navigator.clipboard.writeText(ref.id);showToast('📋 ルームID（'+ref.id.substring(0,8)+'）をコピーしました');}catch{showToast('🎯 ルームを作成しました');}
+  await addSysChat(ref.id,'ルームを作成しました。仲間を招待してください！');
+}
+
+async function joinGameRoom(){
+  const roomId=document.getElementById('join-id').value.trim();
+  if(!roomId){showToast('ルームIDを入力してください');return;}
+  if(!currentUser){showToast('ログインしてください');return;}
+  const{db,doc,getDoc,updateDoc}=window.__fb;
+  try{
+    // ルームデータ取得
+    const snap=await getDoc(doc(db,'game_rooms',roomId));
+    if(!snap.exists()){showToast('❌ ルームが見つかりません');return;}
+    const roomData=snap.data();
+    if(roomData.status==='ended'){showToast('❌ このルームは終了しています');return;}
+    const name=currentUser.displayName||currentUser.email.split('@')[0];
+    const alreadyIn=roomData.players&&roomData.players.some(p=>p.uid===currentUser.uid);
+    if(!alreadyIn){
+      // プレイヤーリストに追加
+      const newPlayers=[...(roomData.players||[]),{uid:currentUser.uid,name,score:0}];
+      await updateDoc(doc(db,'game_rooms',roomId),{
+        players:newPlayers,
+        playerCount:newPlayers.length,
+        status:newPlayers.length>=2?'playing':'waiting'
+      });
+      myRole=newPlayers.length-1;
+      players=newPlayers;
+    }else{
+      myRole=(roomData.players||[]).findIndex(p=>p.uid===currentUser.uid);
+      players=roomData.players||[];
+    }
+    // ゲーム種別をルームから復元
+    if(!currentGame){
+      currentGame=GAMES.find(g=>g.id===roomData.gameId)||GAMES[0];
+    }
+    currentRoomId=roomId;
+    startListening(roomId);
+    nav('game');
+    document.getElementById('game-room-title').textContent=currentGame.ico+' '+currentGame.name;
+    updateStatusBadge('参加中');
+    showToast('⚔️ ルームに参加しました！');
+    if(!alreadyIn) await addSysChat(roomId,name+'さんが参加しました！');
+  }catch(e){showToast('❌ 参加失敗: '+e.message);console.error(e);}
+}
+
+/* ══ リアルタイム同期 ══ */
+function startListening(roomId){
+  if(roomUnsub)roomUnsub();
+  const{db,doc,onSnapshot}=window.__fb;
+  roomUnsub=onSnapshot(doc(db,'game_rooms',roomId),snap=>{
+    if(!snap.exists())return;
+    const data=snap.data();
+    players=data.players||[];
+    gameState=data.state?JSON.parse(data.state):{};
+    // ゲームに応じてUIを更新
+    renderGameContent(data);
+    if(data.status==='ended')showGameEnd(data);
+    // 自分のロールを確認
+    if(currentUser){
+      const idx=players.findIndex(p=>p.uid===currentUser.uid);
+      if(idx>=0)myRole=idx;
+    }
+  });
+  startChatListening(roomId);
+}
+
+function startChatListening(roomId){
+  if(chatUnsub)chatUnsub();
+  const{db,collection,onSnapshot,query,orderBy}=window.__fb;
+  chatUnsub=onSnapshot(
+    query(collection(db,'game_rooms',roomId,'chat'),orderBy('createdAt','asc')),
+    snap=>{
+      const el=document.getElementById('chat-msgs');
+      if(!el)return;
+      el.innerHTML='';
+      snap.forEach(d=>{
+        const data=d.data();
+        const isMe=data.uid===currentUser?.uid;
+        const isSys=data.type==='system';
+        const div=document.createElement('div');
+        div.className='cmsg '+(isSys?'sys':isMe?'me':'other');
+        div.innerHTML='<div class="cbub">'+data.text+'</div>';
+        el.appendChild(div);
+      });
+      el.scrollTop=el.scrollHeight;
+    }
+  );
+}
+
+async function sendChat(){
+  if(!currentRoomId||!currentUser)return;
+  const ta=document.getElementById('chat-input');
+  const text=ta?.value.trim();
+  if(!text)return;
+  ta.value='';
+  const{db,collection,addDoc,serverTimestamp}=window.__fb;
+  const name=currentUser.displayName||currentUser.email.split('@')[0];
+  await addDoc(collection(db,'game_rooms',currentRoomId,'chat'),{
+    text:name+'：'+text,uid:currentUser.uid,createdAt:serverTimestamp()
+  });
+}
+
+async function addSysChat(roomId,text){
+  const{db,collection,addDoc,serverTimestamp}=window.__fb;
+  try{
+    await addDoc(collection(db,'game_rooms',roomId,'chat'),{
+      text,type:'system',uid:'system',createdAt:serverTimestamp()
+    });
+  }catch{}
+}
+
+async function updateState(newState,extra={}){
+  if(!currentRoomId)return;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify(newState),...extra
+  });
+}
+
+function updateStatusBadge(txt,color='var(--txt3)'){
+  const el=document.getElementById('game-status-badge');
+  if(el){el.textContent=txt;el.style.color=color;el.style.borderColor=color;}
+}
+
+/* ══ ゲームコンテンツ描画 ══ */
+function renderGameContent(roomData){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const gameId=roomData.gameId||currentGame?.id;
+  const state=roomData.state?JSON.parse(roomData.state):{};
+  const ps=roomData.players||[];
+  const turn=roomData.turn||0;
+  const isMyTurn=ps[turn]?.uid===currentUser?.uid;
+  updateStatusBadge(
+    roomData.status==='waiting'?'待機中':
+    isMyTurn?'あなたの番':'相手の番',
+    roomData.status==='waiting'?'var(--txt3)':
+    isMyTurn?'var(--grn)':'var(--txt3)'
+  );
+  const renders={
+    othello:renderOthello,
+    gomoku:renderGomoku,
+    baba:renderBaba,
+    daifugo:renderDaifugo,
+    sugoroku:renderSugoroku,
+    quiz:renderQuiz,
+    wolf:renderWolf,
+    okiri:renderOkiri,
+    ranking:renderRanking,
+    escape:renderEscape,
+    shogi:renderShogi,
+  };
+  if(renders[gameId])renders[gameId](state,ps,turn,isMyTurn);
+}
+
+/* ══ 初期状態 ══ */
+function getInitialState(gameId){
+  switch(gameId){
+    case'othello':{
+      const b=Array(8).fill(null).map(()=>Array(8).fill(0));
+      b[3][3]=1;b[3][4]=2;b[4][3]=2;b[4][4]=1;
+      return{board:b,scores:{1:2,2:2}};
+    }
+    case'gomoku':return{board:Array(15).fill(null).map(()=>Array(15).fill(0)),winner:null};
+    case'baba':{
+      const deck=createDeck();
+      shuffle(deck);
+      return{deck,hands:{},field:[],phase:'dealing'};
+    }
+    case'daifugo':{
+      const deck=createDeck().filter(c=>c.suit!=='J');
+      shuffle(deck);
+      return{deck,hands:{},field:[],pass:0,phase:'dealing',revolution:false};
+    }
+    case'sugoroku':return{positions:{},money:{},jobs:{},events:[],phase:'playing',goal:30};
+    case'quiz':return{question:'',choices:[],answer:'',scores:{},phase:'waiting',answered:{}};
+    case'wolf':return{topic1:'',topic2:'',assignments:{},votes:{},phase:'thinking',wolfIdx:-1};
+    case'okiri':return{theme:'',answers:{},scores:{},phase:'thinking',judged:false};
+    case'ranking':return{theme:'',answers:{},scores:{},phase:'thinking',revealed:false};
+    case'escape':return{room:'',riddles:[],solved:[],hints:[],phase:'playing',escaped:false};
+    case'shogi':{
+      // 後手（上・row0-2）先手（下・row6-8）
+      const b=Array(9).fill(null).map(()=>Array(9).fill(null));
+      // 後手（e:true）
+      const eBack=['香','桂','銀','金','王','金','銀','桂','香'];
+      for(let c=0;c<9;c++) b[0][c]={p:eBack[c],e:true,promoted:false};
+      b[1][1]={p:'飛',e:true,promoted:false};
+      b[1][7]={p:'角',e:true,promoted:false};
+      for(let c=0;c<9;c++) b[2][c]={p:'歩',e:true,promoted:false};
+      // 先手（e:false）
+      const sBack=['香','桂','銀','金','玉','金','銀','桂','香'];
+      for(let c=0;c<9;c++) b[8][c]={p:sBack[c],e:false,promoted:false};
+      b[7][7]={p:'飛',e:false,promoted:false};
+      b[7][1]={p:'角',e:false,promoted:false};
+      for(let c=0;c<9;c++) b[6][c]={p:'歩',e:false,promoted:false};
+      return{board:b,hands:{0:[],1:[]},selected:null,promotePending:null,lastMove:null};
+    }
+    default:return{};
+  }
+}
+
+/* ══ トランプ ══ */
+const SUITS=['♠','♥','♦','♣'];
+const RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function createDeck(){
+  const d=[];
+  for(const s of SUITS)for(const r of RANKS)d.push({suit:s,rank:r,val:RANKS.indexOf(r)+1});
+  d.push({suit:'J',rank:'🃏',val:0});
+  return d;
+}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}}
+
+function cardColor(card){return(card.suit==='♥'||card.suit==='♦')?'red':'black';}
+function cardDisplay(card){return card.suit+card.rank;}
+
+/* ══ オセロ ══ */
+function renderOthello(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const board=state.board||Array(8).fill(null).map(()=>Array(8).fill(0));
+  const scores=state.scores||{1:2,2:2};
+  const myColor=myRole===0?1:2;
+  const hints=isMyTurn?getOthelloHints(board,myColor):[];
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;margin-bottom:.5rem">
+    ${ps.map((p,i)=>`
+    <div style="text-align:center;padding:.3rem .5rem;border-radius:var(--r2);
+      background:${i===turn?'var(--grn2)':'var(--sur2)'};
+      border:1px solid ${i===turn?'var(--grn)':'var(--bor)'}">
+      <div style="font-size:1rem">${i===0?'⚫':'⚪'}</div>
+      <div style="font-size:.62rem;font-weight:700">${p.name}</div>
+      <div style="font-size:.8rem;font-weight:900;color:var(--grn)">${scores[i+1]||0}</div>
+    </div>`).join('')}
+  </div>
+  <div style="display:flex;justify-content:center">
+    <div class="othello-board" style="width:min(320px,calc(100vw - 40px))">
+      ${board.map((row,r)=>row.map((cell,c)=>{
+        const isHint=hints.some(h=>h[0]===r&&h[1]===c);
+        return `<div class="oth-cell${isHint?' hint':''}"
+          onclick="placeOthello(${r},${c})"
+          style="height:calc((min(320px,calc(100vw - 40px)) - 8px) / 8)">
+          ${cell===1?'<div class="oth-piece" style="background:#111"></div>':
+            cell===2?'<div class="oth-piece" style="background:#fff"></div>':
+            isHint?'<div style="width:20%;height:20%;border-radius:50%;background:rgba(255,255,255,.4)"></div>':''}
+        </div>`;
+      }).join('')).join('')}
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:.4rem;font-size:.65rem;color:var(--txt3)">
+    ${isMyTurn?'あなたの番（'+( myColor===1?'⚫':'⚪')+'）':'相手の番を待っています...'}
+  </div>`;
+}
+
+function getOthelloHints(board,color){
+  const opp=color===1?2:1;
+  const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const hints=[];
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    if(board[r][c]!==0)continue;
+    for(const[dr,dc]of dirs){
+      let nr=r+dr,nc=c+dc,found=false;
+      while(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc]===opp){nr+=dr;nc+=dc;found=true;}
+      if(found&&nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc]===color){
+        hints.push([r,c]);break;
+      }
+    }
+  }
+  return hints;
+}
+
+async function placeOthello(r,c){
+  if(!gameState||myRole<0)return;
+  const ps=players;
+  const turn=gameState.turn||0; // roomDataから取得
+  const myColor=myRole===0?1:2;
+  const board=JSON.parse(JSON.stringify(gameState.board||Array(8).fill(null).map(()=>Array(8).fill(0))));
+  if(board[r][c]!==0)return;
+  // ひっくり返す
+  const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const opp=myColor===1?2:1;
+  let flipped=[];
+  for(const[dr,dc]of dirs){
+    let nr=r+dr,nc=c+dc,tmp=[];
+    while(nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc]===opp){tmp.push([nr,nc]);nr+=dr;nc+=dc;}
+    if(tmp.length&&nr>=0&&nr<8&&nc>=0&&nc<8&&board[nr][nc]===myColor)flipped=[...flipped,...tmp];
+  }
+  if(!flipped.length){showToast('そこには置けません');return;}
+  board[r][c]=myColor;
+  flipped.forEach(([fr,fc])=>board[fr][fc]=myColor);
+  const scores={};
+  for(let i=0;i<8;i++)for(let j=0;j<8;j++)if(board[i][j])scores[board[i][j]]=(scores[board[i][j]]||0)+1;
+  const newState={...gameState,board,scores};
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify(newState),
+    turn:(myRole+1)%Math.max(players.length,2)
+  });
+  const total=(scores[1]||0)+(scores[2]||0);
+  if(total===64){
+    await updateDoc(doc(db,'game_rooms',currentRoomId),{status:'ended'});
+    const winner=(scores[1]||0)>(scores[2]||0)?ps[0]?.name:ps[1]?.name;
+    await addSysChat(currentRoomId,winner+'の勝利！⚫'+(scores[1]||0)+' vs ⚪'+(scores[2]||0));
+  }
+}
+
+/* ══ 五目並べ ══ */
+function renderGomoku(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const board=state.board||Array(15).fill(null).map(()=>Array(15).fill(0));
+  const size=Math.min(320,window.innerWidth-40);
+  const cell=Math.floor(size/15);
+  el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;margin-bottom:.4rem">
+    ${ps.map((p,i)=>`
+    <div style="text-align:center;padding:.25rem .45rem;border-radius:var(--r2);
+      background:${i===turn?'var(--gold2)':'var(--sur2)'};
+      border:1px solid ${i===turn?'var(--gold)':'var(--bor)'}">
+      <div style="font-size:.75rem">${i===0?'⚫':'⚪'}</div>
+      <div style="font-size:.58rem;font-weight:700">${p.name}</div>
+    </div>`).join('')}
+  </div>
+  <div style="display:flex;justify-content:center">
+    <div class="gomoku-board"
+      style="grid-template-columns:repeat(15,${cell}px);width:${cell*15}px">
+      ${board.map((row,r)=>row.map((cell2,c)=>`
+      <div class="gom-cell" onclick="placeGomoku(${r},${c})"
+        style="width:${cell}px;height:${cell}px">
+        ${cell2===1?'<div style="width:80%;height:80%;border-radius:50%;background:#111"></div>':
+          cell2===2?'<div style="width:80%;height:80%;border-radius:50%;background:#fff;border:1px solid #999"></div>':''}
+      </div>`).join('')).join('')}
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:.35rem;font-size:.65rem;color:var(--txt3)">
+    ${state.winner?state.winner+'の勝利！':isMyTurn?'あなたの番':'相手の番...'}
+  </div>`;
+}
+
+async function placeGomoku(r,c){
+  const board=JSON.parse(JSON.stringify(gameState.board||Array(15).fill(null).map(()=>Array(15).fill(0))));
+  if(board[r][c]!==0||gameState.winner)return;
+  const myColor=myRole===0?1:2;
+  board[r][c]=myColor;
+  // 勝利判定
+  let winner=null;
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const[dr,dc]of dirs){
+    let count=1;
+    for(let d=1;d<5;d++){const nr=r+dr*d,nc=c+dc*d;if(nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]===myColor)count++;else break;}
+    for(let d=1;d<5;d++){const nr=r-dr*d,nc=c-dc*d;if(nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]===myColor)count++;else break;}
+    if(count>=5){winner=players[myRole]?.name;break;}
+  }
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,board,winner}),
+    turn:(myRole+1)%Math.max(players.length,2),
+    ...(winner?{status:'ended'}:{})
+  });
+  if(winner)await addSysChat(currentRoomId,'🎉 '+winner+'の勝利！5つ並べました！');
+}
+
+/* ══ ババ抜き ══ */
+function renderBaba(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const myHand=state.hands?state.hands[currentUser?.uid]||[]:[];
+  const others=ps.filter(p=>p.uid!==currentUser?.uid);
+  el.innerHTML=`
+  <div style="margin-bottom:.5rem">
+    ${ps.map(p=>{
+      const hand=state.hands?state.hands[p.uid]||[]:[];
+      const isMe=p.uid===currentUser?.uid;
+      return `<div class="player-row">
+        <div class="player-color" style="background:${isMe?'var(--grn)':'var(--acc)'}"></div>
+        <div style="flex:1;font-size:.7rem;font-weight:700">${p.name}${isMe?' (あなた)':''}</div>
+        <div style="font-size:.65rem;color:var(--txt3)">${hand.length}枚</div>
+        ${hand.length===0?'<span style="font-size:.6rem;color:var(--rose);font-weight:700">上がり！</span>':''}
+      </div>`;
+    }).join('')}
+  </div>
+  <div style="margin-bottom:.35rem;font-size:.62rem;font-weight:700;color:var(--txt3)">
+    あなたの手札（${myHand.length}枚）
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:.2rem;margin-bottom:.5rem">
+    ${myHand.map((card,i)=>`
+    <div class="card-item ${cardColor(card)}" onclick="selectBabaCard(${i})">
+      ${card.suit==='J'?'🃏':cardDisplay(card)}
+    </div>`).join('')}
+  </div>
+  ${state.phase==='dealing'&&myRole===0?`
+  <button class="btn-primary" onclick="dealBaba()">🃏 カードを配る</button>`:''}
+  ${isMyTurn&&state.phase==='playing'&&others.length>0?`
+  <div style="font-size:.62rem;font-weight:700;color:var(--txt3);margin-bottom:.25rem">
+    相手の手札から1枚引く（裏向き）
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:.2rem">
+    ${(state.hands?state.hands[others[0]?.uid]||[]:[] ).map((card,i)=>`
+    <div class="card-item back" onclick="drawBabaCard('${others[0]?.uid}',${i})">🂠</div>`).join('')}
+  </div>`:''}
+  <div style="margin-top:.4rem;font-size:.65rem;color:var(--txt3);text-align:center">
+    ${isMyTurn&&state.phase==='playing'?'あなたの番：相手の手札から1枚引いてください':'相手の番...'}
+  </div>`;
+}
+
+async function dealBaba(){
+  const deck=createDeck();shuffle(deck);
+  const ps=players;
+  const hands={};
+  ps.forEach((p,i)=>{hands[p.uid]=[];});
+  deck.forEach((card,i)=>{if(ps.length>0)hands[ps[i%ps.length].uid].push(card);});
+  // ペアを除去
+  for(const uid of Object.keys(hands)){
+    let changed=true;
+    while(changed){
+      changed=false;
+      const hand=hands[uid];
+      for(let i=0;i<hand.length;i++){
+        for(let j=i+1;j<hand.length;j++){
+          if(hand[i].rank===hand[j].rank&&hand[i].suit!=='J'&&hand[j].suit!=='J'){
+            hand.splice(j,1);hand.splice(i,1);
+            changed=true;break;
+          }
+        }
+        if(changed)break;
+      }
+    }
+  }
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,hands,phase:'playing'}),
+    status:'playing'
+  });
+  await addSysChat(currentRoomId,'ゲーム開始！ジョーカーを持った人の負けです！');
+}
+
+async function drawBabaCard(fromUid,idx){
+  const hands=JSON.parse(JSON.stringify(gameState.hands||{}));
+  const myUid=currentUser?.uid;
+  if(!hands[fromUid]||!hands[myUid])return;
+  const card=hands[fromUid].splice(idx,1)[0];
+  hands[myUid].push(card);
+  // ペア除去
+  let changed=true;
+  while(changed){
+    changed=false;
+    const hand=hands[myUid];
+    for(let i=0;i<hand.length;i++){
+      for(let j=i+1;j<hand.length;j++){
+        if(hand[i].rank===hand[j].rank&&hand[i].suit!=='J'&&hand[j].suit!=='J'){
+          hand.splice(j,1);hand.splice(i,1);changed=true;break;
+        }
+      }
+      if(changed)break;
+    }
+  }
+  const allEmpty=Object.values(hands).filter(h=>h.length===0).length===players.length-1;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,hands}),
+    turn:(myRole+1)%Math.max(players.length,2),
+    ...(allEmpty?{status:'ended'}:{})
+  });
+  if(card.suit==='J')await addSysChat(currentRoomId,'😱 ジョーカーを引いてしまいました！');
+}
+
+/* ══ 大富豪 ══ */
+function renderDaifugo(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const myHand=(state.hands?state.hands[currentUser?.uid]||[]:[] ).sort((a,b)=>a.val-b.val);
+  const field=state.field||[];
+  el.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.4rem">
+    ${ps.map((p,i)=>{
+      const hand=state.hands?state.hands[p.uid]||[]:[];
+      return `<div class="player-row" style="flex:1;min-width:100px;margin:0">
+        <div class="player-color" style="background:${['var(--grn)','var(--rose)','var(--gold)','var(--blue)'][i%4]}"></div>
+        <div style="flex:1;font-size:.65rem;font-weight:700">${p.name}</div>
+        <div style="font-size:.6rem;color:var(--txt3)">${hand.length}枚</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="daifugo-field" style="margin-bottom:.4rem">
+    ${field.length?field.map(c=>`<div class="card-item ${cardColor(c)}">${cardDisplay(c)}</div>`).join('')
+      :'<div style="color:var(--txt3);font-size:.65rem">場：なし</div>'}
+  </div>
+  <div style="font-size:.6rem;font-weight:700;color:var(--txt3);margin-bottom:.2rem">
+    手札（タップして選択）
+  </div>
+  <div style="display:flex;flex-wrap:wrap;margin-bottom:.4rem" id="my-daifugo-hand">
+    ${myHand.map((card,i)=>`
+    <div class="card-item ${cardColor(card)}" id="dcard-${i}"
+      onclick="toggleDaiCard(${i})">${cardDisplay(card)}</div>`).join('')}
+  </div>
+  ${state.phase==='dealing'&&myRole===0?`
+  <button class="btn-primary" onclick="dealDaifugo()">🃏 カードを配る</button>`:''}
+  ${isMyTurn&&state.phase==='playing'?`
+  <div style="display:flex;gap:.3rem">
+    <button onclick="playDaifugo()" class="btn-primary" style="flex:1;margin:0">出す</button>
+    <button onclick="passDaifugo()" class="btn-secondary" style="flex:1;margin:0">パス</button>
+  </div>`:''}`;
+}
+
+let selectedDaiCards=[];
+function toggleDaiCard(idx){
+  const el=document.getElementById('dcard-'+idx);
+  if(!el)return;
+  const i=selectedDaiCards.indexOf(idx);
+  if(i>=0){selectedDaiCards.splice(i,1);el.classList.remove('selected');}
+  else{selectedDaiCards.push(idx);el.classList.add('selected');}
+}
+
+async function dealDaifugo(){
+  const deck=createDeck().filter(c=>c.suit!=='J');shuffle(deck);
+  const ps=players;
+  const hands={};
+  ps.forEach(p=>{hands[p.uid]=[];});
+  deck.forEach((card,i)=>{if(ps.length>0)hands[ps[i%ps.length].uid].push(card);});
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,hands,phase:'playing',field:[],pass:0}),
+    status:'playing'
+  });
+  await addSysChat(currentRoomId,'大富豪スタート！手札を出して早く上がろう！');
+}
+
+async function playDaifugo(){
+  if(!selectedDaiCards.length)return;
+  const myHand=(gameState.hands?gameState.hands[currentUser?.uid]||[]:[] ).sort((a,b)=>a.val-b.val);
+  const cards=selectedDaiCards.map(i=>myHand[i]);
+  const field=gameState.field||[];
+  // 強さチェック（簡易）
+  if(field.length&&cards.length===field.length){
+    const myMax=Math.max(...cards.map(c=>c.val));
+    const fieldMax=Math.max(...field.map(c=>c.val));
+    if(myMax<=fieldMax&&!gameState.revolution){showToast('場のカードより強いカードを出してください');return;}
+  }
+  const hands=JSON.parse(JSON.stringify(gameState.hands||{}));
+  const myUid=currentUser?.uid;
+  const myArr=hands[myUid].sort((a,b)=>a.val-b.val);
+  selectedDaiCards.sort((a,b)=>b-a).forEach(i=>myArr.splice(i,1));
+  hands[myUid]=myArr;
+  selectedDaiCards=[];
+  const finished=myArr.length===0;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,hands,field:cards,pass:0}),
+    turn:(myRole+1)%Math.max(players.length,2),
+    ...(finished?{status:'ended'}:{})
+  });
+  if(finished){
+    await addSysChat(currentRoomId,'🎉 '+players[myRole]?.name+'が上がり！大富豪！');
+  }
+}
+
+async function passDaifugo(){
+  const newPass=(gameState.pass||0)+1;
+  const allPass=newPass>=players.length-1;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,pass:newPass,...(allPass?{field:[]}:{})}),
+    turn:(myRole+1)%Math.max(players.length,2)
+  });
+  if(allPass)await addSysChat(currentRoomId,'全員パス！場をリセットします');
+}
+
+/* ══ 人生スゴロク ══ */
+const SUGOROKU_COLORS=['#7C3AED','#10B981','#F59E0B','#F43F5E','#3B82F6','#EC4899'];
+function renderSugoroku(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const goal=state.goal||30;
+  const positions=state.positions||{};
+  const money=state.money||{};
+  el.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;gap:.28rem;margin-bottom:.4rem">
+    ${ps.map((p,i)=>`
+    <div class="player-row" style="flex:1;min-width:130px;margin:0">
+      <div class="player-color" style="background:${SUGOROKU_COLORS[i%6]}"></div>
+      <div style="flex:1">
+        <div style="font-size:.65rem;font-weight:700">${p.name}</div>
+        <div style="font-size:.56rem;color:var(--txt3)">
+          ${positions[p.uid]||0}/${goal}マス ｜ 💰${money[p.uid]||100}万
+        </div>
+      </div>
+      ${(positions[p.uid]||0)>=goal?'<span style="font-size:.6rem;color:var(--grn);font-weight:700">ゴール！</span>':''}
+    </div>`).join('')}
+  </div>
+  <div class="sugoroku-board"
+    style="grid-template-columns:repeat(6,1fr);margin-bottom:.4rem">
+    ${Array(goal+1).fill(0).map((_,i)=>{
+      const here=ps.filter(p=>(positions[p.uid]||0)===i);
+      return `<div class="sg-cell" style="${i===0?'background:var(--grn2);':i===goal?'background:var(--gold2);':''}">
+        <div style="position:absolute;top:1px;left:2px;font-size:.45rem;color:var(--txt3)">${i}</div>
+        ${i===0?'🏠':i===goal?'🏆':''}
+        ${here.map((p,j)=>`<div style="width:8px;height:8px;border-radius:50%;background:${SUGOROKU_COLORS[ps.indexOf(p)%6]};position:absolute;top:${j*9+2}px;right:2px"></div>`).join('')}
+      </div>`;
+    }).join('')}
+  </div>
+  ${state.lastEvent?`<div style="background:var(--acc3);border:1px solid var(--bor2);
+    border-radius:var(--r2);
+    padding:.45rem .6rem;margin-bottom:.35rem;
+    font-size:.68rem;color:var(--txt)">${state.lastEvent}</div>`:''}
+  ${isMyTurn&&(positions[currentUser?.uid]||0)<goal?`
+  <button class="btn-primary" onclick="rollSugoroku()">🎲 ルーレットを回す</button>`:''}
+  ${!isMyTurn?`<div style="text-align:center;font-size:.65rem;color:var(--txt3)">相手の番...</div>`:''}`;
+}
+
+async function rollSugoroku(){
+  const dice=Math.floor(Math.random()*6)+1;
+  const myUid=currentUser?.uid;
+  const positions=JSON.parse(JSON.stringify(gameState.positions||{}));
+  const money=JSON.parse(JSON.stringify(gameState.money||{}));
+  if(!money[myUid])money[myUid]=100;
+  const prev=positions[myUid]||0;
+  const next=Math.min(prev+dice,gameState.goal||30);
+  positions[myUid]=next;
+  // Geminiでイベント生成
+  const sys=`あなたは人生スゴロクのゲームマスターです。マス目のイベントを1文で面白く生成してください。JSON{"event":"イベント内容","money":金額変動(マイナスも可)}で返してください。`;
+  const user=`プレイヤー「${players[myRole]?.name}」がサイコロ${dice}を出して${next}マス目に到着しました。`;
+  let event='さいころ'+dice+'！'+next+'マス目に到着！';
+  let moneyChange=0;
+  try{
+    const r=await callGemini(sys,user,200);
+    const m=r.match(/\{[^}]+\}/);
+    if(m){const j=JSON.parse(m[0]);event=j.event||event;moneyChange=j.money||0;}
+  }catch{}
+  money[myUid]+=moneyChange;
+  const goal=gameState.goal||30;
+  const finished=next>=goal;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,positions,money,lastEvent:event}),
+    turn:(myRole+1)%Math.max(players.length,2),
+    ...(finished?{status:'ended'}:{})
+  });
+  await addSysChat(currentRoomId,'🎲 '+players[myRole]?.name+'：'+dice+'の目 → '+event);
+  if(finished)await addSysChat(currentRoomId,'🏆 '+players[myRole]?.name+'がゴール！おめでとう！');
+}
+
+/* ══ クイズ早押し ══ */
+function renderQuiz(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const scores=state.scores||{};
+  const answered=state.answered||{};
+  const myAnswered=answered[currentUser?.uid];
+  el.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;gap:.28rem;margin-bottom:.45rem">
+    ${ps.map(p=>`
+    <div class="player-row" style="flex:1;min-width:100px;margin:0">
+      <div style="flex:1;font-size:.65rem;font-weight:700">${p.name}</div>
+      <div style="font-size:.75rem;font-weight:900;color:var(--grn)">${scores[p.uid]||0}pt</div>
+    </div>`).join('')}
+  </div>
+  ${state.phase==='waiting'&&myRole===0?`
+  <select id="quiz-genre"
+    style="width:100%;padding:.5rem .7rem;border-radius:var(--r2);
+    border:1.5px solid var(--bor2);background:var(--sur2);
+    font-size:.74rem;color:var(--txt);margin-bottom:.35rem">
+    <option value="一般常識">一般常識</option>
+    <option value="将棋">将棋</option>
+    <option value="歴史">歴史</option>
+    <option value="スポーツ">スポーツ</option>
+    <option value="芸能">芸能・エンタメ</option>
+    <option value="科学">科学・理科</option>
+  </select>
+  <button class="btn-primary" onclick="generateQuiz()">❓ クイズを出題する</button>`:''}
+  ${state.question?`
+  <div style="background:var(--acc3);border:1.5px solid var(--bor2);
+    border-radius:var(--r2);padding:.65rem .75rem;margin-bottom:.4rem">
+    <div style="font-size:.62rem;color:var(--acc2);font-weight:700;margin-bottom:.2rem">問題</div>
+    <div style="font-size:.8rem;font-weight:700;color:var(--txt);line-height:1.55">${state.question}</div>
+  </div>
+  ${(state.choices||[]).map((c,i)=>`
+  <button class="quiz-choice ${state.revealed?(c===state.answer?'correct':myAnswered===c?'wrong':''):(myAnswered===c?'selected':'')}"
+    onclick="answerQuiz('${c}')"
+    ${myAnswered||state.revealed?'disabled':''}>${c}</button>`).join('')}
+  ${state.revealed?`
+  <div style="text-align:center;font-size:.7rem;color:var(--grn);font-weight:700;margin:.3rem 0">
+    ✅ 正解：${state.answer}
+  </div>
+  ${myRole===0?`<button class="btn-primary" onclick="nextQuiz()">次の問題へ</button>`:''}
+  `:''}
+  `:''}`;
+}
+
+async function generateQuiz(){
+  const genre=document.getElementById('quiz-genre')?.value||'一般常識';
+  const sys=`あなたはクイズ出題AIです。JSON{"question":"問題文","choices":["選択肢A","B","C","D"],"answer":"正解"}で返してください。choicesは4択で正解を含む。`;
+  const user=`ジャンル「${genre}」の4択クイズを1問作ってください。`;
+  const r=await callGemini(sys,user,400);
+  try{
+    const m=r.match(/\{[\s\S]*"answer"[\s\S]*\}/);
+    if(m){
+      const j=JSON.parse(m[0]);
+      const{db,doc,updateDoc}=window.__fb;
+      await updateDoc(doc(db,'game_rooms',currentRoomId),{
+        state:JSON.stringify({...gameState,question:j.question,choices:j.choices,answer:j.answer,answered:{},revealed:false,phase:'answering'})
+      });
+      await addSysChat(currentRoomId,'❓ '+genre+'クイズを出題しました！');
+    }
+  }catch(e){showToast('生成失敗');}
+}
+
+async function answerQuiz(choice){
+  const answered=JSON.parse(JSON.stringify(gameState.answered||{}));
+  const scores=JSON.parse(JSON.stringify(gameState.scores||{}));
+  const myUid=currentUser?.uid;
+  if(answered[myUid])return;
+  answered[myUid]=choice;
+  if(choice===gameState.answer){
+    scores[myUid]=(scores[myUid]||0)+10;
+    await addSysChat(currentRoomId,'⚡ '+players[myRole]?.name+'が正解！+10pt');
+  }
+  const allAnswered=players.every(p=>answered[p.uid]);
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,answered,scores,revealed:allAnswered})
+  });
+}
+
+async function nextQuiz(){
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,question:'',choices:[],answer:'',answered:{},revealed:false,phase:'waiting'})
+  });
+}
+
+/* ══ ワードウルフ ══ */
+function renderWolf(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const myTopic=state.assignments?state.assignments[currentUser?.uid]:'';
+  const votes=state.votes||{};
+  const myVoted=votes[currentUser?.uid];
+  el.innerHTML=`
+  ${state.phase==='thinking'&&myTopic?`
+  <div class="wolf-card">
+    <div style="font-size:.62rem;color:rgba(255,255,255,.7);margin-bottom:.3rem">あなたのお題</div>
+    <div style="font-size:1.4rem;font-weight:900;color:#fff">${myTopic}</div>
+    <div style="font-size:.58rem;color:rgba(255,255,255,.6);margin-top:.25rem">
+      ※他の人と違うお題かもしれません。誰がウルフか探してください！
+    </div>
+  </div>
+  <div style="font-size:.65rem;color:var(--txt3);margin:.4rem .3rem">
+    お題についてみんなで話し合いましょう。チャットを使ってください。
+  </div>
+  ${myRole===0?`<button class="btn-primary" onclick="startWolfVote()">🗳 投票フェーズへ</button>`:''}
+  `:''}
+  ${state.phase==='voting'?`
+  <div style="font-size:.72rem;font-weight:700;color:var(--txt);margin-bottom:.35rem">
+    🗳 誰がウルフだと思いますか？
+  </div>
+  ${ps.filter(p=>p.uid!==currentUser?.uid).map(p=>`
+  <button class="quiz-choice ${myVoted===p.uid?'correct':''}"
+    onclick="voteWolf('${p.uid}')"
+    ${myVoted?'disabled':''}>
+    ${p.name}
+  </button>`).join('')}
+  ${Object.keys(votes).length>=players.length-1||myRole===0?`
+  <button class="btn-primary" onclick="revealWolf()">結果を見る</button>
+  `:''}
+  `:''}
+  ${state.phase==='result'?`
+  <div style="text-align:center;margin-bottom:.5rem">
+    <div style="font-size:2rem;margin-bottom:.3rem">🐺</div>
+    <div style="font-size:.88rem;font-weight:700;color:var(--rose)">ウルフは...</div>
+    <div style="font-size:1.2rem;font-weight:900;color:var(--txt);margin:.2rem 0">
+      ${ps[state.wolfIdx]?.name||'？'}
+    </div>
+    <div style="font-size:.65rem;color:var(--txt3)">
+      多数派：「${state.topic1}」 ウルフ：「${state.topic2}」
+    </div>
+  </div>
+  ${myRole===0?`<button class="btn-primary" onclick="startWolf()">もう一回</button>`:''}
+  `:''}
+  ${state.phase==='waiting'&&myRole===0?`
+  <select id="wolf-cat"
+    style="width:100%;padding:.5rem .7rem;border-radius:var(--r2);
+    border:1.5px solid var(--bor2);background:var(--sur2);
+    font-size:.74rem;color:var(--txt);margin-bottom:.35rem">
+    <option>食べ物</option><option>スポーツ</option>
+    <option>動物</option><option>乗り物</option><option>場所</option>
+  </select>
+  <button class="btn-primary" onclick="startWolf()">🐺 ゲームスタート</button>
+  `:''}`;
+}
+
+async function startWolf(){
+  const cat=document.getElementById('wolf-cat')?.value||'食べ物';
+  const sys=`あなたはワードウルフのお題生成AIです。同じカテゴリで似ているが違う2つのお題をJSON{"topic1":"多数派のお題","topic2":"ウルフのお題"}で返してください。`;
+  const r=await callGemini(sys,'カテゴリ：'+cat,200);
+  try{
+    const m=r.match(/\{"topic1"[^}]+\}/);
+    if(m){
+      const j=JSON.parse(m[0]);
+      const wolfIdx=Math.floor(Math.random()*players.length);
+      const assignments={};
+      players.forEach((p,i)=>{assignments[p.uid]=i===wolfIdx?j.topic2:j.topic1;});
+      const{db,doc,updateDoc}=window.__fb;
+      await updateDoc(doc(db,'game_rooms',currentRoomId),{
+        state:JSON.stringify({...gameState,topic1:j.topic1,topic2:j.topic2,wolfIdx,assignments,votes:{},phase:'thinking'}),
+        status:'playing'
+      });
+      await addSysChat(currentRoomId,'🐺 ワードウルフスタート！各自のお題を確認して話し合ってください！');
+    }
+  }catch{showToast('生成失敗');}
+}
+
+async function startWolfVote(){
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,phase:'voting',votes:{}})
+  });
+  await addSysChat(currentRoomId,'🗳 投票フェーズ！誰がウルフか投票してください！');
+}
+
+async function voteWolf(uid){
+  const votes=JSON.parse(JSON.stringify(gameState.votes||{}));
+  votes[currentUser?.uid]=uid;
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,votes})
+  });
+}
+
+async function revealWolf(){
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,phase:'result'})
+  });
+  const wolf=players[gameState.wolfIdx]?.name;
+  await addSysChat(currentRoomId,'🐺 ウルフは'+wolf+'でした！多数派：「'+gameState.topic1+'」 ウルフ：「'+gameState.topic2+'」');
+}
+
+/* ══ 大喜利 ══ */
+function renderOkiri(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const scores=state.scores||{};
+  const answers=state.answers||{};
+  const myAnswered=answers[currentUser?.uid];
+  el.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;gap:.28rem;margin-bottom:.4rem">
+    ${ps.map(p=>`
+    <div class="player-row" style="flex:1;min-width:100px;margin:0">
+      <div style="flex:1;font-size:.65rem;font-weight:700">${p.name}</div>
+      <div style="font-size:.75rem;font-weight:900;color:var(--grn)">${scores[p.uid]||0}pt</div>
+    </div>`).join('')}
+  </div>
+  ${state.phase==='waiting'&&myRole===0?`
+  <button class="btn-primary" onclick="generateOkiri()">😂 お題を出す</button>`:''}
+  ${state.theme?`
+  <div style="background:var(--rose2);border:1.5px solid var(--rose);border-radius:var(--r2);padding:.65rem;margin-bottom:.4rem;text-align:center">
+    <div style="font-size:.6rem;color:var(--rose);font-weight:700;margin-bottom:.15rem">お題</div>
+    <div style="font-size:.88rem;font-weight:700;color:var(--txt)">${state.theme}</div>
+  </div>
+  ${!myAnswered&&state.phase==='answering'?`
+  <textarea id="okiri-ans" placeholder="面白い回答を入力..." rows="2"
+    style="width:100%;padding:.55rem .68rem;border-radius:var(--r2);
+    border:1.5px solid var(--bor2);background:var(--sur2);
+    font-size:.76rem;color:var(--txt);resize:none;margin-bottom:.3rem"></textarea>
+  <button class="btn-primary" onclick="submitOkiri()">回答を送信</button>`:''}
+  ${state.judged?`
+  <div style="font-size:.65rem;font-weight:700;color:var(--txt3);margin-bottom:.28rem">みんなの回答</div>
+  ${Object.entries(answers).map(([uid,ans])=>{
+    const p=ps.find(p=>p.uid===uid);
+    return `<div class="answer-card">
+      <div style="font-size:.6rem;color:var(--txt3);margin-bottom:.08rem">${p?.name||'不明'}</div>
+      <div style="font-size:.72rem;color:var(--txt)">${ans}</div>
+    </div>`;
+  }).join('')}
+  <div style="background:var(--gold2);border:1px solid var(--gold);border-radius:var(--r2);padding:.55rem;margin:.4rem 0;text-align:center">
+    <div style="font-size:.6rem;color:var(--gold);font-weight:700">🏆 AI審判の結果</div>
+    <div style="font-size:.75rem;font-weight:700;color:var(--txt);margin-top:.15rem">${state.judgeResult||''}</div>
+  </div>
+  ${myRole===0?`<button class="btn-primary" onclick="nextOkiri()">次のお題</button>`:''}
+  `:Object.keys(answers).length+'/'+players.length+'人が回答済み'}`:''}`;
+}
+
+async function generateOkiri(){
+  const sys=`大喜利のお題を1つ生成してください。面白くて短い文章で。JSON{"theme":"お題"}のみ返してください。`;
+  const r=await callGemini(sys,'大喜利のお題を生成',200);
+  try{
+    const m=r.match(/\{"theme":"([^"]+)"\}/);
+    if(m){
+      const{db,doc,updateDoc}=window.__fb;
+      await updateDoc(doc(db,'game_rooms',currentRoomId),{
+        state:JSON.stringify({...gameState,theme:m[1],answers:{},judged:false,judgeResult:'',phase:'answering'})
+      });
+      await addSysChat(currentRoomId,'😂 大喜利スタート！お題：「'+m[1]+'」');
+    }
+  }catch{showToast('生成失敗');}
+}
+
+async function submitOkiri(){
+  const ans=document.getElementById('okiri-ans')?.value.trim();
+  if(!ans)return;
+  const answers=JSON.parse(JSON.stringify(gameState.answers||{}));
+  answers[currentUser?.uid]=ans;
+  const allAnswered=players.every(p=>answers[p.uid]);
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,answers})
+  });
+  if(allAnswered){
+    // AI審判
+    const ansStr=Object.entries(answers).map(([uid,a])=>{
+      const p=players.find(p=>p.uid===uid);
+      return p?.name+'：「'+a+'」';
+    }).join('\n');
+    const sys=`あなたは大喜利の審判AIです。お題に対して最も面白い回答を選び、理由を一言で説明してください。JSON{"winner":"勝者名","reason":"理由"}で返してください。`;
+    const r=await callGemini(sys,'お題：'+gameState.theme+'\n回答一覧：\n'+ansStr,400);
+    let judgeResult='審判中...';
+    try{
+      const m=r.match(/\{"winner"[^}]+\}/);
+      if(m){
+        const j=JSON.parse(m[0]);
+        judgeResult=j.winner+'の勝利！「'+j.reason+'」';
+        const scores=JSON.parse(JSON.stringify(gameState.scores||{}));
+        const winner=players.find(p=>p.name===j.winner);
+        if(winner)scores[winner.uid]=(scores[winner.uid]||0)+10;
+        await updateDoc(doc(db,'game_rooms',currentRoomId),{
+          state:JSON.stringify({...gameState,answers,judged:true,judgeResult,scores})
+        });
+        await addSysChat(currentRoomId,'🏆 AI審判結果：'+judgeResult);
+        return;
+      }
+    }catch{}
+    await updateDoc(doc(db,'game_rooms',currentRoomId),{
+      state:JSON.stringify({...gameState,answers,judged:true,judgeResult})
+    });
+  }
+}
+
+async function nextOkiri(){
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,theme:'',answers:{},judged:false,judgeResult:'',phase:'waiting'})
+  });
+}
+
+/* ══ なんでもランキング ══ */
+function renderRanking(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const scores=state.scores||{};
+  const answers=state.answers||{};
+  const myAnswered=answers[currentUser?.uid];
+  el.innerHTML=`
+  <div style="display:flex;flex-wrap:wrap;gap:.28rem;margin-bottom:.4rem">
+    ${ps.map(p=>`
+    <div class="player-row" style="flex:1;min-width:100px;margin:0">
+      <div style="flex:1;font-size:.65rem;font-weight:700">${p.name}</div>
+      <div style="font-size:.75rem;font-weight:900;color:var(--grn)">${scores[p.uid]||0}pt</div>
+    </div>`).join('')}
+  </div>
+  ${state.phase==='waiting'&&myRole===0?`
+  <button class="btn-primary" onclick="generateRanking()">📊 お題を出す</button>`:''}
+  ${state.theme?`
+  <div style="background:var(--grn2);border:1.5px solid var(--grn);border-radius:var(--r2);padding:.65rem;margin-bottom:.4rem;text-align:center">
+    <div style="font-size:.6rem;color:var(--grn);font-weight:700;margin-bottom:.15rem">お題</div>
+    <div style="font-size:.88rem;font-weight:700;color:var(--txt)">${state.theme}</div>
+  </div>
+  ${!myAnswered&&state.phase==='answering'?`
+  <input id="ranking-ans" placeholder="あなたの回答を入力..." type="text"
+    style="width:100%;padding:.55rem .68rem;border-radius:var(--r2);
+    border:1.5px solid var(--bor2);background:var(--sur2);
+    font-size:.76rem;color:var(--txt);margin-bottom:.3rem">
+  <button class="btn-primary" onclick="submitRanking()">回答を送信</button>`:''}
+  ${state.revealed?`
+  <div style="font-size:.65rem;font-weight:700;color:var(--txt3);margin-bottom:.25rem">みんなの回答</div>
+  ${Object.entries(answers).map(([uid,ans])=>{
+    const p=ps.find(p=>p.uid===uid);
+    const matched=Object.values(answers).filter(a=>a===ans).length>1;
+    return `<div class="answer-card" style="border-color:${matched?'var(--grn)':'var(--bor)'}">
+      <span style="font-size:.6rem;color:var(--txt3)">${p?.name||'?'}：</span>
+      <span style="font-size:.72rem;font-weight:700;color:${matched?'var(--grn)':'var(--txt)'}">${ans}</span>
+      ${matched?'<span style="font-size:.58rem;color:var(--grn);margin-left:.3rem">✓ 一致！+10pt</span>':''}
+    </div>`;
+  }).join('')}
+  ${myRole===0?`<button class="btn-primary" style="margin-top:.4rem" onclick="nextRanking()">次のお題</button>`:''}
+  `:Object.keys(answers).length+'/'+players.length+'人が回答済み'}`:''}`;
+}
+
+async function generateRanking(){
+  const sys=`「なんでもランキング」のお題を1つ生成してください。例：「好きな食べ物TOP1を答えてください」JSON{"theme":"お題"}のみ返してください。`;
+  const r=await callGemini(sys,'ランキングお題を生成',200);
+  try{
+    const m=r.match(/\{"theme":"([^"]+)"\}/);
+    if(m){
+      const{db,doc,updateDoc}=window.__fb;
+      await updateDoc(doc(db,'game_rooms',currentRoomId),{
+        state:JSON.stringify({...gameState,theme:m[1],answers:{},revealed:false,phase:'answering'})
+      });
+      await addSysChat(currentRoomId,'📊 お題：「'+m[1]+'」 一致したら得点！');
+    }
+  }catch{showToast('生成失敗');}
+}
+
+async function submitRanking(){
+  const ans=document.getElementById('ranking-ans')?.value.trim();
+  if(!ans)return;
+  const answers=JSON.parse(JSON.stringify(gameState.answers||{}));
+  answers[currentUser?.uid]=ans;
+  const allAnswered=players.every(p=>answers[p.uid]);
+  let scores=JSON.parse(JSON.stringify(gameState.scores||{}));
+  if(allAnswered){
+    const groups={};
+    Object.entries(answers).forEach(([uid,a])=>{if(!groups[a])groups[a]=[];groups[a].push(uid);});
+    Object.values(groups).forEach(uids=>{if(uids.length>1)uids.forEach(uid=>{scores[uid]=(scores[uid]||0)+10;});});
+  }
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,answers,scores,revealed:allAnswered})
+  });
+  if(allAnswered)await addSysChat(currentRoomId,'📊 全員回答完了！結果を見てください！');
+}
+
+async function nextRanking(){
+  const{db,doc,updateDoc}=window.__fb;
+  await updateDoc(doc(db,'game_rooms',currentRoomId),{
+    state:JSON.stringify({...gameState,theme:'',answers:{},revealed:false,phase:'waiting'})
+  });
+}
+
+/* ══ 謎解き脱出ゲーム ══ */
+function renderEscape(state,ps,turn,isMyTurn){
+  const el=document.getElementById('game-content');
+  if(!el)return;
+  const solved=state.solved||[];
+  const riddles=state.riddles||[];
+  el.innerHTML=`
+  ${state.phase==='waiting'&&myRole===0?`
+  <select id="escape-theme"
+    style="width:100%;padding:.5rem .7rem;border-radius:var(--r2);
+    border:1.5px solid var(--bor2);background:var(--sur2);
+    font-size:.74rem;color:var(--txt);margin-bottom:.35rem">
+    <option>古城からの脱出</option>
+    <option>宇宙船の謎</option>
+    <option>深海研究所</option>
+    <option>魔法の図書館</option>
+  </select>
+  <button class="btn-primary" onclick="startEscape()">🔐 脱出ゲームを開始</button>`:''}
+  ${state.room?`
+  <div style="background:var(--gold2);border:1px solid var(--gold);border-radius:var(--r2);padding:.55rem;margin-bottom:.4rem;text-align:center">
+    <div style="font-size:.62rem;color:var(--gold);font-weight:700">${state.room}</div>
+  </div>
+  <div style="font-size:.62rem;color:var(--txt3);margin-bottom:.25rem">
+    謎${solved.length}/${riddles.length}解決
+    <span style="margin-left:.4rem">参加者${ps.length}人で協力！</span>
+  </div>
+  ${riddles.map((riddle,i)=>{
+    const isSolved=solved.includes(i);
+    return `<div style="background:${isSolved?'var(--grn2)':'var(--sur2)'};
+      border:1.5px solid ${isSolved?'var(--grn)':'var(--bor)'};
+      border-radius:var(--r2);padding:.55rem .65rem;margin-bottom:.28rem">
+      <div style="font-size:.62rem;font-weight:700;color:${isSolved?'var(--grn)':'var(--txt)'}">
+        ${isSolved?'✅':'🔒'} 謎${i+1}
+      </div>
+      <div style="font-size:.7rem;color:var(--txt);margin:.1rem 0">${riddle.question}</div>
+      ${isSolved?`<div style="font-size:.62rem;color:var(--grn)">正解：${riddle.answer}</div>`:`
+      <div style="display:flex;gap:.3rem;margin-top:.3rem">
+        <input id="escape-ans-${i}" placeholder="答えを入力..."
+          style="flex:1;padding:.38rem .5rem;border-radius:var(--r1);
+          border:1px solid var(--bor2);background:var(--bg3);
+          font-size:.7rem;color:var(--txt)">
+        <button onclick="answerEscape(${i})"
+          style="padding:.38rem .65rem;border-radius:var(--rf);
+          background:var(--acc);border:none;font-size:.65rem;
+          font-weight:700;color:#fff;cursor:pointer">送る</button>
+      </div>`}
+    </div>`;
+  }).join('')}
+  ${state.escaped?`
+  <div style="text-align:center;padding:1rem;background:var(--grn2);
+    border-radius:var(--r3);border:1px solid var(--grn)">
+    <div style="font-size:2rem;margin-bottom:.3rem">🎉</div>
+    <div style="font-size:.88rem;font-weight:700;color:var(--grn)">脱出成功！</div>
+  </div>
+  `:''}
+  `:''}`;
+}
+
+async function startEscape(){
+  const theme=document.getElementById('escape-theme')?.value||'古城からの脱出';
+  const sys=`あなたは脱出ゲームのGMです。謎解き問題を3問生成してください。JSON{"room":"部屋の説明","riddles":[{"question":"謎の説明","answer":"答え"},{"question":"","answer":""},{"question":"","answer":""}]}で返してください。`;
+  const r=await callGemini(sys,'テーマ：'+theme,600);
+  try{
+    const m=r.match(/\{[\s\S]*"riddles"[\s\S]*\}/);
+    if(m){
+      const j=JSON.parse(m[0]);
+      const{db,doc,updateDoc}=window.__fb;
+      await updateDoc(doc(db,'game_rooms',currentRoomId),{
+        state:JSON.stringify({...gameState,room:j.room,riddles:j.riddles,solved:[],hints:[],escaped:false,phase:'playing'}),
+        status:'playing'
+      });
+      await addSysChat(currentRoomId,'🔐 脱出ゲーム開始！「'+theme+'」みんなで協力して謎を解け！');
+    }
+  }catch{showToast('生成失敗');}
+}
+
+async function answerEscape(idx){
+  const ans=document.getElementById('escape-ans-'+idx)?.value.trim();
+  if(!ans)return;
+  const riddle=gameState.riddles?.[idx];
+  if(!riddle)return;
+  if(ans.toLowerCase()===riddle.answer.toLowerCase()||ans===riddle.answer){
+    const solved=[...(gameState.solved||[]),idx];
+    const escaped=solved.length>=( gameState.riddles?.length||3);
+    const{db,doc,updateDoc}=window.__fb;
+    await updateDoc(doc(db,'game_rooms',currentRoomId),{
+      state:JSON.stringify({...gameState,solved,escaped}),
+      ...(escaped?{status:'ended'}:{})
+    });
+    await addSysChat(currentRoomId,'✅ '+players[myRole]?.name+'が謎'+(idx+1)+'を解いた！'+( escaped?'🎉 全員脱出成功！':''));
+  }else{
+    showToast('❌ 違います...');
+  }
+}
+
+/* ══ 終了画面 ══ */
+
+/* ══ 将棋 ══ */
+
+// 駒の動き定義（先手・後手共通、後手は反転）
+const SHOGI_MOVES = {
+  '歩': {step:[[1,0]]},
+  '香': {slide:[[1,0]]},
+  '桂': {step:[[2,-1],[2,1]]},
+  '銀': {step:[[1,-1],[1,0],[1,1],[-1,-1],[-1,1]]},
+  '金': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,0]]},
+  '王': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,-1],[-1,0],[-1,1]]},
+  '玉': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,-1],[-1,0],[-1,1]]},
+  '角': {slide:[[1,1],[1,-1],[-1,1],[-1,-1]]},
+  '飛': {slide:[[1,0],[-1,0],[0,1],[0,-1]]},
+  'と': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,0]]},
+  '杏': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,0]]},
+  '圭': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,0]]},
+  '全': {step:[[1,-1],[1,0],[1,1],[0,-1],[0,1],[-1,0]]},
+  '馬': {slide:[[1,1],[1,-1],[-1,1],[-1,-1]],step:[[1,0],[-1,0],[0,1],[0,-1]]},
+  '龍': {slide:[[1,0],[-1,0],[0,1],[0,-1]],step:[[1,1],[1,-1],[-1,1],[-1,-1]]},
+};
+const PROMOTE = {'歩':'と','香':'杏','桂':'圭','銀':'全','角':'馬','飛':'龍'};
+const DEMOTE = {'と':'歩','杏':'香','圭':'桂','全':'銀','馬':'角','龍':'飛'};
+const CAN_PROMOTE = new Set(['歩','香','桂','銀','角','飛']);
+
+// 合法手生成
+function getShogiMoves(board, r, c, isEnemy) {
+  const cell = board[r][c];
+  if (!cell || cell.e !== isEnemy) return [];
+  const def = SHOGI_MOVES[cell.p];
+  if (!def) return [];
+  const moves = [];
+  const dir = isEnemy ? 1 : -1; // 後手は下向き、先手は上向き
+
+  // step移動
+  if (def.step) {
+    for (const [dr, dc] of def.step) {
+      const nr = r + dr * dir, nc = c + dc;
+      if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+      const target = board[nr][nc];
+      if (target && target.e === isEnemy) continue;
+      moves.push([nr, nc]);
+    }
+  }
+  // slide移動
+  if (def.slide) {
+    for (const [dr, dc] of def.slide) {
+      let nr = r + dr, nc = c + dc;
+      // 香車のみ方向を反転
+      const adjDr = cell.p === '香' ? dr * dir : dr;
+      nr = r + adjDr; nc = c + dc;
+      while (nr >= 0 && nr <= 8 && nc >= 0 && nc <= 8) {
+        const target = board[nr][nc];
+        if (target) {
+          if (target.e !== isEnemy) moves.push([nr, nc]);
+          break;
+        }
+        moves.push([nr, nc]);
+        nr += adjDr; nc += dc;
+      }
+    }
+  }
+  return moves;
+}
+
+// 持ち駒を打てる場所
+function getDropMoves(board, piece, isEnemy) {
+  const moves = [];
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (board[r][c]) continue;
+      // 歩：同じ列に自分の歩がない
+      if (piece === '歩') {
+        let hasFu = false;
+        for (let rr = 0; rr < 9; rr++) {
+          const cell = board[rr][c];
+          if (cell && cell.e === isEnemy && cell.p === '歩') { hasFu = true; break; }
+        }
+        if (hasFu) continue;
+      }
+      // 行き場のない場所には打てない
+      if (!isEnemy) {
+        if (piece === '歩' || piece === '香') { if (r === 0) continue; }
+        if (piece === '桂') { if (r <= 1) continue; }
+      } else {
+        if (piece === '歩' || piece === '香') { if (r === 8) continue; }
+        if (piece === '桂') { if (r >= 7) continue; }
+      }
+      moves.push([r, c]);
+    }
+  }
+  return moves;
+}
+
+// 成れるか判定
+function canPromote(piece, r, isEnemy) {
+  if (!CAN_PROMOTE.has(piece)) return false;
+  const inZone = isEnemy ? r >= 6 : r <= 2;
+  return inZone;
+}
+
+// 必ず成らなければならないか
+function mustPromote(piece, r, isEnemy) {
+  if (piece === '歩' || piece === '香') {
+    return isEnemy ? r === 8 : r === 0;
+  }
+  if (piece === '桂') {
+    return isEnemy ? r >= 7 : r <= 1;
+  }
+  return false;
+}
+
+let shogiSelected = null;
+let shogiDrop = null;
+let shogiLegalMoves = [];
+
+function renderShogi(state, ps, turn, isMyTurn) {
+  const el = document.getElementById('game-content');
+  if (!el) return;
+  const board = state.board || Array(9).fill(null).map(() => Array(9).fill(null));
+  const hands = state.hands || { 0: [], 1: [] };
+  const myIdx = myRole ?? 0;
+  const isMe = isMyTurn;
+  const myIsEnemy = myIdx === 1; // player1=先手(false), player2=後手(true)
+
+  // 成り確認モーダル
+  if (state.promotePending) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:20px;margin-bottom:12px">「${state.promotePending.piece}」を成りますか？</div>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button class="btn-primary" onclick="shogiPromote(true)">成る → ${PROMOTE[state.promotePending.piece]}</button>
+          <button class="ctrl-btn" onclick="shogiPromote(false)">成らない</button>
+        </div>
+      </div>`;
+    renderShogiBoard(board, hands, myIsEnemy, false, el);
+    return;
+  }
+
+  renderShogiBoard(board, hands, myIsEnemy, isMe, el);
+}
+
+function renderShogiBoard(board, hands, myIsEnemy, isMe, el) {
+  const myIdx = myRole ?? 0;
+  const myHand = hands[myIdx] || [];
+  const enemyHand = hands[myIdx === 0 ? 1 : 0] || [];
+
+  // 相手の持ち駒
+  let html = `<div style="margin-bottom:6px;min-height:28px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+    <span style="font-size:9px;color:var(--txt3)">相手持ち駒:</span>
+    ${enemyHand.map(p=>`<div style="font-size:16px;transform:rotate(180deg)">${p}</div>`).join('')}
+  </div>`;
+
+  // 盤面
+  html += `<div id="shogi-board" style="
+    display:grid;grid-template-columns:repeat(9,1fr);
+    border:2px solid var(--gold);border-radius:6px;overflow:hidden;
+    width:min(calc(100vw - 28px), 360px);margin:0 auto;
+  ">`;
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cell = board[r][c];
+      const isSelected = shogiSelected && shogiSelected[0] === r && shogiSelected[1] === c;
+      const isLegal = shogiLegalMoves.some(([lr, lc]) => lr === r && lc === c);
+      const isLast = gameState.lastMove && gameState.lastMove[0] === r && gameState.lastMove[1] === c;
+      const bg = isSelected ? '#c8920a44' : isLegal ? '#17a85444' : isLast ? '#1a6fff22' : ((r + c) % 2 === 0 ? 'var(--bg2)' : 'var(--bg3)');
+      html += `<div onclick="shogiClick(${r},${c})"
+        style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+        border:1px solid var(--bor2);background:${bg};cursor:pointer;position:relative;">`;
+      if (cell) {
+        const rot = cell.e !== myIsEnemy ? 'rotate(180deg)' : '';
+        const color = cell.e ? 'var(--rose)' : 'var(--gold)';
+        html += `<div style="font-size:clamp(10px,3.5vw,18px);transform:${rot};color:${color};font-weight:700;line-height:1">${cell.p}</div>`;
+      }
+      if (isLegal && !cell) html += `<div style="position:absolute;width:40%;height:40%;border-radius:50%;background:#17a85466"></div>`;
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  // 自分の持ち駒
+  html += `<div style="margin-top:6px;min-height:28px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+    <span style="font-size:9px;color:var(--txt3)">自分持ち駒:</span>
+    ${myHand.map((p,i)=>`<div onclick="${isMe?`shogiPickDrop(${i})`:'void 0'}"
+      style="font-size:16px;cursor:pointer;padding:2px 4px;border-radius:4px;
+      border:1px solid ${shogiDrop===i?'var(--gold)':'var(--bor2)'};
+      background:${shogiDrop===i?'var(--gold-l)':'transparent'}">${p}</div>`).join('')}
+  </div>`;
+
+  // ステータス
+  html += `<div style="text-align:center;font-size:11px;color:var(--txt2);margin-top:6px;">
+    ${isMe ? '⚡ あなたの番です' : '⏳ 相手の番...'}
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function shogiClick(r, c) {
+  if (!isMyTurnNow()) return;
+  const myIsEnemy = (myRole ?? 0) === 1;
+  const board = gameState.board;
+  const hands = gameState.hands || { 0: [], 1: [] };
+  const myIdx = myRole ?? 0;
+
+  // 持ち駒打ちモード
+  if (shogiDrop !== null) {
+    const myHand = hands[myIdx] || [];
+    const piece = myHand[shogiDrop];
+    const dropMoves = getDropMoves(board, piece, myIsEnemy);
+    if (dropMoves.some(([dr, dc]) => dr === r && dc === c)) {
+      // 打つ
+      const newBoard = board.map(row => row.map(cell => cell ? {...cell} : null));
+      newBoard[r][c] = { p: piece, e: myIsEnemy, promoted: false };
+      const newHands = { 0: [...(hands[0]||[])], 1: [...(hands[1]||[])] };
+      newHands[myIdx] = newHands[myIdx].filter((_, i) => i !== shogiDrop);
+      shogiDrop = null;
+      shogiSelected = null;
+      shogiLegalMoves = [];
+      saveShogiState(newBoard, newHands, null);
+      return;
+    }
+    shogiDrop = null;
+    shogiSelected = null;
+    shogiLegalMoves = [];
+    renderShogi(gameState, players, 0, true);
+    return;
+  }
+
+  // 選択中の駒を動かす
+  if (shogiSelected) {
+    const [sr, sc] = shogiSelected;
+    if (shogiLegalMoves.some(([lr, lc]) => lr === r && lc === c)) {
+      const newBoard = board.map(row => row.map(cell => cell ? {...cell} : null));
+      const moving = {...newBoard[sr][sc]};
+      const captured = newBoard[r][c];
+      // 取った駒を持ち駒に
+      if (captured) {
+        const capBase = DEMOTE[captured.p] || captured.p;
+        if (capBase !== '王' && capBase !== '玉') {
+          const newHands = { 0: [...(hands[0]||[])], 1: [...(hands[1]||[])] };
+          newHands[myIdx].push(capBase);
+          gameState.hands = newHands;
+        }
+      }
+      newBoard[r][c] = moving;
+      newBoard[sr][sc] = null;
+
+      // 成り判定
+      const promoted = moving.promoted;
+      const canP = !promoted && canPromote(moving.p, r, myIsEnemy);
+      const mustP = !promoted && mustPromote(moving.p, r, myIsEnemy);
+
+      if (mustP) {
+        newBoard[r][c].p = PROMOTE[moving.p];
+        newBoard[r][c].promoted = true;
+        shogiSelected = null; shogiLegalMoves = [];
+        saveShogiState(newBoard, gameState.hands, [r, c]);
+      } else if (canP) {
+        // 成り確認
+        const newHands2 = gameState.hands || { 0: [], 1: [] };
+        shogiSelected = null; shogiLegalMoves = [];
+        savePartialShogiState(newBoard, newHands2, r, c, moving.p);
+      } else {
+        shogiSelected = null; shogiLegalMoves = [];
+        saveShogiState(newBoard, gameState.hands, [r, c]);
+      }
+      return;
+    }
+    // 同じ駒をクリック→選択解除
+    if (sr === r && sc === c) {
+      shogiSelected = null; shogiLegalMoves = [];
+      renderShogi(gameState, players, 0, true);
+      return;
+    }
+  }
+
+  // 自分の駒を選択
+  const cell = board[r][c];
+  if (cell && cell.e === myIsEnemy) {
+    shogiSelected = [r, c];
+    shogiLegalMoves = getShogiMoves(board, r, c, myIsEnemy);
+    renderShogi(gameState, players, 0, true);
+  }
+}
+
+function isMyTurnNow() {
+  const ps = players || [];
+  const turn = gameState.turn || 0;
+  // turn=0:先手(myRole=0), turn=1:後手(myRole=1)
+  return ps[turn]?.uid === (window.__fb?.auth?.currentUser?.uid);
+}
+
+function shogiPickDrop(idx) {
+  if (!isMyTurnNow()) return;
+  shogiDrop = shogiDrop === idx ? null : idx;
+  shogiSelected = null;
+  const myIsEnemy = (myRole ?? 0) === 1;
+  const hands = gameState.hands || { 0: [], 1: [] };
+  const myHand = hands[myRole ?? 0] || [];
+  if (shogiDrop !== null) {
+    shogiLegalMoves = getDropMoves(gameState.board, myHand[shogiDrop], myIsEnemy);
+  } else {
+    shogiLegalMoves = [];
+  }
+  renderShogi(gameState, players, 0, true);
+}
+
+async function shogiPromote(doPromote) {
+  const pending = gameState.promotePending;
+  if (!pending) return;
+  const newBoard = gameState.board.map(row => row.map(cell => cell ? {...cell} : null));
+  if (doPromote) {
+    newBoard[pending.r][pending.c].p = PROMOTE[pending.piece];
+    newBoard[pending.r][pending.c].promoted = true;
+  }
+  const { db, doc, updateDoc } = window.__fb;
+  const newState = { ...gameState, board: newBoard, promotePending: null, lastMove: [pending.r, pending.c] };
+  delete newState.promotePending;
+  const nextTurn = ((gameState.turn || 0) + 1) % 2;
+  await updateDoc(doc(db, 'game_rooms', currentRoomId), {
+    state: JSON.stringify({...newState, turn: nextTurn}),
+    turn: nextTurn
+  });
+}
+
+async function savePartialShogiState(board, hands, r, c, piece) {
+  const { db, doc, updateDoc } = window.__fb;
+  const newState = { ...gameState, board, hands, promotePending: { r, c, piece }, lastMove: [r, c] };
+  // ターンはまだ変えない（成り確認待ち）
+  await updateDoc(doc(db, 'game_rooms', currentRoomId), {
+    state: JSON.stringify(newState),
+    turn: gameState.turn || 0
+  });
+}
+
+async function saveShogiState(board, hands, lastMove) {
+  const { db, doc, updateDoc } = window.__fb;
+  const nextTurn = ((gameState.turn || 0) + 1) % 2;
+  const newState = { ...gameState, board, hands, lastMove, turn: nextTurn };
+  await updateDoc(doc(db, 'game_rooms', currentRoomId), {
+    state: JSON.stringify(newState),
+    turn: nextTurn
+  });
+}
+
+function showGameEnd(data){
+  showToast('🏁 ゲーム終了！');
+}
+
+/* ══ 退出 ══ */
+function leaveGame(){
+  if(roomUnsub)roomUnsub();
+  if(chatUnsub)chatUnsub();
+  currentRoomId=null;myRole=null;gameState={};players=[];
+  nav('home');
+}
+
+/* ══ AUTH ══ */
+function toggleReg(){
+  const a=document.getElementById('reg-area');
+  a.style.display=a.style.display==='none'?'block':'none';
+}
+async function doLogin(){
+  const email=document.getElementById('li-email').value.trim();
+  const pass=document.getElementById('li-pass').value;
+  const err=document.getElementById('li-err');err.textContent='';
+  if(!email||!pass){err.textContent='入力してください';return;}
+  try{await window.__fb.signInWithEmailAndPassword(window.__fb.auth,email,pass);}
+  catch(e){err.textContent='メールまたはパスワードが違います';}
+}
+async function doRegister(){
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const pass2=document.getElementById('reg-pass2').value;
+  const err=document.getElementById('reg-err');err.textContent='';
+  if(!email||!pass){err.textContent='入力してください';return;}
+  if(pass.length<6){err.textContent='パスワードは6文字以上';return;}
+  if(pass!==pass2){err.textContent='パスワードが一致しません';return;}
+  try{await window.__fb.createUserWithEmailAndPassword(window.__fb.auth,email,pass);}
+  catch(e){err.textContent='登録失敗: '+e.message;}
+}
+async function doLogout(){await window.__fb.signOut(window.__fb.auth);}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+let _booted=false;
+function bootApp(){
+  if(_booted)return;_booted=true;
+  setTimeout(()=>{
+    document.getElementById('splash').classList.add('hide');
+    if(!window.__fb||!window.__fb.auth){
+      document.getElementById('auth-wrap').style.display='flex';return;
+    }
+    window.__fb.onAuthStateChanged(window.__fb.auth,user=>{
+      currentUser=user;
+      if(user){
+        document.getElementById('auth-wrap').style.display='none';
+        document.getElementById('app').style.display='flex';
+        document.getElementById('topbar-user').textContent=
+          user.displayName||user.email.split('@')[0];
+        renderGameList();
+      }else{
+        document.getElementById('auth-wrap').style.display='flex';
+        document.getElementById('app').style.display='none';
+      }
+    });
+  },2000);
+}
+function waitForFB(cb,max=8000){
+  if(window.__fb&&window.__fb.auth){cb();return;}
+  const start=Date.now();
+  const t=setInterval(()=>{
+    if(window.__fb&&window.__fb.auth){clearInterval(t);cb();}
+    else if(Date.now()-start>max){
+      clearInterval(t);
+      document.getElementById('splash').classList.add('hide');
+      document.getElementById('auth-wrap').style.display='flex';
+    }
+  },100);
+}
+window.addEventListener('fb-ready',()=>waitForFB(bootApp));
+waitForFB(bootApp);
+</script>
+</body>
+</html>
